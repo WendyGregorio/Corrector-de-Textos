@@ -1,6 +1,7 @@
 import os
 from flask import Flask, request, jsonify, render_template
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 
 # Cargar variables de entorno desde .env si existe
@@ -12,11 +13,10 @@ def get_gemini_client():
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         print("ERROR CRÍTICO: GEMINI_API_KEY no se encontró en las variables de entorno.")
-        return False
+        return genai.Client()
     
     print("ÉXITO: GEMINI_API_KEY fue leída del entorno.")
-    genai.configure(api_key=api_key)
-    return True
+    return genai.Client(api_key=api_key)
 
 @app.route("/")
 def index():
@@ -30,9 +30,7 @@ def corregir_texto():
     construye un prompt, consulta a Gemini y devuelve la respuesta.
     """
     try:
-        is_configured = get_gemini_client()
-        if not is_configured:
-             return jsonify({"error": "Falta GEMINI_API_KEY de entorno en Vercel."}), 500
+        client = get_gemini_client()
     except Exception as e:
          print(f"Error al inicializar cliente: {e}")
          return jsonify({"error": f"Error de configuración: {e}"}), 500
@@ -68,27 +66,18 @@ def corregir_texto():
         f"Aplica las correcciones necesarias según el nivel solicitado."
     )
 
-    # 4. Llamada a la API del modelo gemini-pro (universalmente compatible)
+    # 4. Llamada a la API del modelo gemini-2.5-flash usando google-genai
     try:
-        model = genai.GenerativeModel(
-            model_name="gemini-pro"
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt_usuario,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                response_mime_type="application/json",
+            ),
         )
         
-        # gemini-pro a veces no lee bien system_instruction, así que
-        # lo uniremos todo en el prompt de usuario de forma segura
-        prompt_with_json_request = (
-            system_instruction + "\n\n" +
-            prompt_usuario + "\n\n" +
-            "POR FAVOR RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO CON LAS CLAVES 'texto_corregido' y 'explicacion'. NINGÚN OTRO TEXTO."
-        )
-        
-        response = model.generate_content(prompt_with_json_request)
         texto_respuesta = response.text
-        
-        # Limpiar bloques markdown si el modelo decide usarlos ("""json y """)
-        texto_respuesta = texto_respuesta.replace("```json", "").replace("```", "").strip()
-        
-        # En caso de que el modelo retorne texto crudo que pueda ser parseado como JSON en el frontend
         import json
         try:
              # Validamos que sea un JSON válido desde backend
