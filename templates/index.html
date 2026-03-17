@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corrector de Textos IA</title>
+    <!-- Google Fonts for modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <!-- Background Decorators -->
+    <div class="bg-shape shape-1"></div>
+    <div class="bg-shape shape-2"></div>
+
+    <main class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-container">
+                <span class="icon">✨</span>
+                <h1>Corrector de Textos <span class="highlight">IA</span></h1>
+            </div>
+            <p class="subtitle">Mejora tu escritura con la potencia de Gemini 2.5 Flash</p>
+        </header>
+
+        <!-- Main Workspace -->
+        <div class="workspace">
+            <!-- Input Area -->
+            <section class="card input-section">
+                <form id="corrector-form">
+                    <div class="form-group">
+                        <label for="texto">Texto Original</label>
+                        <textarea id="texto" name="texto" rows="8" placeholder="Pega tu texto aquí..." required></textarea>
+                    </div>
+
+                    <div class="form-group row">
+                        <div class="col">
+                            <label for="nivel_correccion">Nivel de Corrección</label>
+                            <div class="select-wrapper">
+                                <select id="nivel_correccion" name="nivel_correccion" required>
+                                    <option value="ortografia" selected>Solo Ortografía y Gramática</option>
+                                    <option value="estilo">Mejora de Estilo</option>
+                                    <option value="formal">Tono Formal</option>
+                                    <option value="informal">Tono Informal</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col button-col">
+                            <button type="submit" id="submit-btn" class="btn-primary">
+                                <span class="btn-text">Corregir Texto</span>
+                                <div class="spinner hidden"></div>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Output Area -->
+            <section class="card output-section hidden" id="result-container">
+                <div class="result-header">
+                    <h2>Resultado</h2>
+                    <button id="copy-btn" class="btn-secondary" title="Copiar al portapapeles">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    </button>
+                </div>
+                
+                <div class="result-box">
+                    <div id="texto-corregido" class="texto-corregido-content"></div>
+                </div>
+
+                <div class="explanation-box mt-4">
+                    <h3><span class="icon">💡</span> Explicación de Cambios</h3>
+                    <div id="explicacion" class="explicacion-content"></div>
+                </div>
+            </section>
+            
+            <!-- Error State -->
+            <section class="card error-section hidden" id="error-container">
+                <div class="error-content">
+                    <span class="error-icon">⚠️</span>
+                    <h3 id="error-title">Hubo un problema</h3>
+                    <p id="error-message"></p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
