@@ -9,21 +9,11 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Configuración de la API Key. Intenta obtenerla del entorno.
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-# Si no está en el entorno pero fue provista, el cliente fallará si no se pasa explícitamente.
-# Idealmente, python-dotenv la cargará desde el archivo .env configurado.
-
-# Inicializar cliente de Gemini usando google-genai
-try:
-    if GEMINI_API_KEY:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-    else:
-        client = genai.Client()
-except Exception as e:
-    client = None
-    print(f"Error al inicializar cliente Gemini: {e}")
+def get_gemini_client():
+    api_key = os.getenv("GEMINI_API_KEY")
+    if api_key:
+        return genai.Client(api_key=api_key)
+    return genai.Client()
 
 @app.route("/")
 def index():
@@ -36,8 +26,11 @@ def corregir_texto():
     Endpoint (API) que recibe texto y el nivel de corrección,
     construye un prompt, consulta a Gemini y devuelve la respuesta.
     """
-    if client is None:
-         return jsonify({"error": "Error de configuración de API de Gemini en el servidor."}), 500
+    try:
+        client = get_gemini_client()
+    except Exception as e:
+         print(f"Error al inicializar cliente: {e}")
+         return jsonify({"error": "Error de configuración de API de Gemini en el servidor. Verifica las variables de entorno de Vercel."}), 500
 
     # 1. Obtener datos JSON del frontend (fetch)
     data = request.get_json()
