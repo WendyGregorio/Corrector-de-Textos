@@ -1,7 +1,6 @@
 import os
 from flask import Flask, request, jsonify, render_template
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 # Cargar variables de entorno desde .env si existe
@@ -13,11 +12,11 @@ def get_gemini_client():
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         print("ERROR CRÍTICO: GEMINI_API_KEY no se encontró en las variables de entorno.")
-        # Intentar inicializar sin llave a ver si el default del entorno la encuentra
-        return genai.Client()
+        return False
     
     print("ÉXITO: GEMINI_API_KEY fue leída del entorno.")
-    return genai.Client(api_key=api_key)
+    genai.configure(api_key=api_key)
+    return True
 
 @app.route("/")
 def index():
@@ -31,10 +30,12 @@ def corregir_texto():
     construye un prompt, consulta a Gemini y devuelve la respuesta.
     """
     try:
-        client = get_gemini_client()
+        is_configured = get_gemini_client()
+        if not is_configured:
+             return jsonify({"error": "Falta GEMINI_API_KEY de entorno en Vercel."}), 500
     except Exception as e:
          print(f"Error al inicializar cliente: {e}")
-         return jsonify({"error": "Error de configuración de API de Gemini en el servidor. Verifica las variables de entorno de Vercel."}), 500
+         return jsonify({"error": f"Error de configuración: {e}"}), 500
 
     # 1. Obtener datos JSON del frontend (fetch)
     data = request.get_json()
@@ -67,23 +68,22 @@ def corregir_texto():
         f"Aplica las correcciones necesarias según el nivel solicitado."
     )
 
-    # 4. Llamada a la API del modelo gemini-2.5-flash usando google-genai
+    # 4. Llamada a la API del modelo gemini-1.5-flash (estable)
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt_usuario,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                response_mime_type="application/json", # Forzamos a Gemini a devolver JSON puro
-            ),
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            system_instruction=system_instruction
         )
+        # response_mime_type no siempre funciona en la v1 en Vercel, pediré JSON puro en el prompt
+        prompt_with_json_request = prompt_usuario + "\n\nPOR FAVOR RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO. NINGÚN OTRO TEXTO."
         
-        # Ocasionalmente el modelo podría empaquetar el json en bloques ```json ... ```,
-        # pero la config response_mime_type ayuda a mitigar eso en las versiones nuevas.
+        response = model.generate_content(prompt_with_json_request)
         texto_respuesta = response.text
         
+        # Limpiar bloques markdown si el modelo decide usarlos ("""json y """)
+        texto_respuesta = texto_respuesta.replace("```json", "").replace("```", "").strip()
+        
         # En caso de que el modelo retorne texto crudo que pueda ser parseado como JSON en el frontend
-        # Pasamos el string directamente (que ya es formato json gracias a response_mime_type)
         import json
         try:
              # Validamos que sea un JSON válido desde backend
