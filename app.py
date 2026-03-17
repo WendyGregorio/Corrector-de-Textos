@@ -71,7 +71,7 @@ def corregir_texto():
     # 4. Llamada a la API del modelo gemini-1.5-flash (estable)
     try:
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
+            model_name="gemini-1.5-flash-latest",
             system_instruction=system_instruction
         )
         # response_mime_type no siempre funciona en la v1 en Vercel, pediré JSON puro en el prompt
