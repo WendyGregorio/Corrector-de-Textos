@@ -11,9 +11,13 @@ app = Flask(__name__)
 
 def get_gemini_client():
     api_key = os.getenv("GEMINI_API_KEY")
-    if api_key:
-        return genai.Client(api_key=api_key)
-    return genai.Client()
+    if not api_key:
+        print("ERROR CRÍTICO: GEMINI_API_KEY no se encontró en las variables de entorno.")
+        # Intentar inicializar sin llave a ver si el default del entorno la encuentra
+        return genai.Client()
+    
+    print("ÉXITO: GEMINI_API_KEY fue leída del entorno.")
+    return genai.Client(api_key=api_key)
 
 @app.route("/")
 def index():
