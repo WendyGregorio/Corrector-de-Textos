@@ -68,14 +68,19 @@ def corregir_texto():
         f"Aplica las correcciones necesarias según el nivel solicitado."
     )
 
-    # 4. Llamada a la API del modelo gemini-1.5-flash (estable)
+    # 4. Llamada a la API del modelo gemini-pro (universalmente compatible)
     try:
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-latest",
-            system_instruction=system_instruction
+            model_name="gemini-pro"
         )
-        # response_mime_type no siempre funciona en la v1 en Vercel, pediré JSON puro en el prompt
-        prompt_with_json_request = prompt_usuario + "\n\nPOR FAVOR RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO. NINGÚN OTRO TEXTO."
+        
+        # gemini-pro a veces no lee bien system_instruction, así que
+        # lo uniremos todo en el prompt de usuario de forma segura
+        prompt_with_json_request = (
+            system_instruction + "\n\n" +
+            prompt_usuario + "\n\n" +
+            "POR FAVOR RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO CON LAS CLAVES 'texto_corregido' y 'explicacion'. NINGÚN OTRO TEXTO."
+        )
         
         response = model.generate_content(prompt_with_json_request)
         texto_respuesta = response.text
