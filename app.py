@@ -1,7 +1,6 @@
 import os
+import requests
 from flask import Flask, request, jsonify, render_template
-from google import genai
-from google.genai import types
 from dotenv import load_dotenv
 
 # Cargar variables de entorno desde .env si existe
@@ -9,14 +8,14 @@ load_dotenv()
 
 app = Flask(__name__)
 
-def get_gemini_client():
+def get_api_key():
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         print("ERROR CRÍTICO: GEMINI_API_KEY no se encontró en las variables de entorno.")
-        return genai.Client()
+        return None
     
     print("ÉXITO: GEMINI_API_KEY fue leída del entorno.")
-    return genai.Client(api_key=api_key)
+    return api_key
 
 @app.route("/")
 def index():
@@ -29,11 +28,9 @@ def corregir_texto():
     Endpoint (API) que recibe texto y el nivel de corrección,
     construye un prompt, consulta a Gemini y devuelve la respuesta.
     """
-    try:
-        client = get_gemini_client()
-    except Exception as e:
-         print(f"Error al inicializar cliente: {e}")
-         return jsonify({"error": f"Error de configuración: {e}"}), 500
+    api_key = get_api_key()
+    if not api_key:
+         return jsonify({"error": "Falta GEMINI_API_KEY de entorno en Vercel."}), 500
 
     # 1. Obtener datos JSON del frontend (fetch)
     data = request.get_json()
@@ -66,18 +63,36 @@ def corregir_texto():
         f"Aplica las correcciones necesarias según el nivel solicitado."
     )
 
-    # 4. Llamada a la API del modelo gemini-2.5-flash usando google-genai
+    # 4. Llamada directa a la API REST de Gemini (Bulletproof para Vercel)
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt_usuario,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                response_mime_type="application/json",
-            ),
-        )
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         
-        texto_respuesta = response.text
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "system_instruction": {
+                "parts": [{"text": system_instruction}]
+            },
+            "contents": [{
+                "parts": [{"text": prompt_usuario}]
+            }],
+            "generationConfig": {
+                "responseMimeType": "application/json"
+            }
+        }
+        
+        response = requests.post(url, headers=headers, json=payload)
+        response_data = response.json()
+        
+        if response.status_code != 200:
+             print("Error de Gemini API:", response_data)
+             return jsonify({"error": f"Error de la API de IA: {response_data.get('error', {}).get('message', 'Desconocido')}"}), 500
+        
+        # Extraer el JSON generado desde la respuesta estructurada de texto de la API REST
+        texto_respuesta = response_data['candidates'][0]['content']['parts'][0]['text']
+        
         import json
         try:
              # Validamos que sea un JSON válido desde backend
@@ -92,7 +107,7 @@ def corregir_texto():
              
     except Exception as e:
         # 5. Manejo de Errores de la API
-        print(f"Error de llamada a la API de Gemini: {e}")
+        print(f"Error de llamada a la API REST de Gemini: {e}")
         return jsonify({"error": f"Error del servidor al procesar la solicitud con la IA: {str(e)}"}), 500
 
 if __name__ == "__main__":
